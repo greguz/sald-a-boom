@@ -16,6 +16,9 @@
 // Milliseconds between buttons polling
 #define POLL_TIMEOUT    50
 
+// Milliseconds
+#define PRESSURE_WINDOW 100
+
 // Milliseconds before CONFIG mode
 #define CONFIG_TIMEOUT  3000
 
@@ -93,7 +96,7 @@ void setup() {
 }
 
 void loop() {
-  bool polled = pollButtons();
+  pollButtons();
 
   switch (mode) {
   case CONFIG:
@@ -103,7 +106,7 @@ void loop() {
     handleKeyboardMode();
     break;
   case SAX:
-    handleSaxMode(polled);
+    handleSaxMode();
     break;
   case LOOP:
     handleLoopMode();
@@ -192,14 +195,15 @@ void handleConfigMode() {
     //   }
     //   playNotification();
     //   break;
-
     }
   }
 }
 
-void handleSaxMode(bool polled) {
+void handleSaxMode() {
   static int min = MIC_SILENCE;
   static int max = MIC_SILENCE;
+
+  static unsigned long since = 0;
 
   int value = analogRead(PIN_MIC);
   if (value < min) {
@@ -209,8 +213,13 @@ void handleSaxMode(bool polled) {
     max = value;
   }
 
-  if (polled) {
-    if (max - min >= MIC_THRESHOLD) {
+  unsigned long now = millis();
+
+  if (now - since >= PRESSURE_WINDOW) {
+    since = now;
+
+    int pressure = max - min;
+    if (pressure >= MIC_THRESHOLD) {
       if (buttonsChanged || !AudioOutI2S.isPlaying()) {
         playTrack();
       }
@@ -257,14 +266,14 @@ void handleLoopMode() {
   }
 }
 
-bool pollButtons() {
+void pollButtons() {
   static unsigned long sinceConfig = 0;
   static unsigned long sincePoll = 0;
 
   // Limit polling
   unsigned long now = millis();
   if (now - sincePoll < POLL_TIMEOUT) {
-    return false;
+    return;
   }
 
   // Restart polling counter
@@ -329,7 +338,7 @@ bool pollButtons() {
     AudioOutI2S.volume(volume);
   }
 
-  return true;
+  return;
 }
 
 void stopPlaying() {
@@ -385,13 +394,6 @@ void playNotification() {
 
 void justPlay(bool loop) {
   stopPlaying();
-
-  // Serial.print("bank=");
-  // Serial.print(bank);
-  // Serial.print(" track=");
-  // Serial.print(getTrack());
-  // Serial.print(" filename=");
-  // Serial.println(filename);
 
   file = SDWaveFile(filename);
 
