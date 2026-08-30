@@ -9,91 +9,63 @@
 #include "buttons.h"
 #include "wav.h"
 
-CoreAudio audio;
-
 FATFS fs;
 
-void test_wav(void) {
-    FIL file;
-    FRESULT res;
-    UINT bytes_read;
-    wav_header_t header;
+FIL file;
 
-    res = f_open(&file, "QUACK.WAV", FA_READ);
+volatile bool file_open = false;
 
-    if (res != FR_OK) {
-        printf("f_open failed: %d\n", res);
-        return;
-    }
-
-    res = f_read(&file, &header, sizeof(header), &bytes_read);
-
-    if (res != FR_OK || bytes_read != sizeof(header)) {
-        printf("Failed to read WAV header\n");
+void close_file(void) {
+    if (file_open) {
         f_close(&file);
-        return;
+        file_open = false;
     }
-
-    printf("Format:       %c%c%c%c\n",
-           header.riff[0], header.riff[1],
-           header.riff[2], header.riff[3]);
-
-    printf("File size:    %lu\n",
-           (unsigned long)header.file_size);
-
-    printf("Channels:     %u\n", header.num_channels);
-    printf("Sample rate:  %lu Hz\n",
-           (unsigned long)header.sample_rate);
-    printf("Bits/sample:  %u\n", header.bits_per_sample);
-    printf("Data size:    %lu\n",
-           (unsigned long)header.data_size);
-
-    f_close(&file);
 }
 
-void list_root_directory(void) {
-    FRESULT res;
-    DIR dir;
-    FILINFO fno;
-
-    res = f_opendir(&dir, "/");
-
-    if (res != FR_OK) {
-        printf("f_opendir failed: %d\n", res);
-        return;
+bool open_file(void) {
+    if (file_open) {
+        close_file();
     }
+    file_open = f_open(&file, "AIHB.WAV", FA_READ) == FR_OK;
+    return file_open;
+}
 
-    printf("Root directory:\n");
-
-    while (1) {
-        res = f_readdir(&dir, &fno);
-
-        if (res != FR_OK) {
-            printf("f_readdir failed: %d\n", res);
-            break;
+bool send_audio(void) {
+    if (!file_open) {
+        if (!open_file()) {
+            return false;
         }
-
-        // End of directory
-        if (fno.fname[0] == '\0') {
-            break;
-        }
-
-        if (fno.fattrib & AM_DIR) {
-            printf("[DIR]  %s\n", fno.fname);
-        } else {
-            printf("       %s  (%lu bytes)\n",
-                   fno.fname,
-                   (unsigned long)fno.fsize);
+        if (f_lseek(&file, sizeof(wav_header_t)) != FR_OK) {
+            close_file();
+            return false;
         }
     }
 
-    f_closedir(&dir);
+    AudioChunk *chunk = grab_chunk();
+    if (chunk == NULL) {
+        return false;
+    }
+
+    unsigned int size = 0;
+    if (f_read(&file, chunk->data, AUDIO_BUFFER_SIZE, &size) != FR_OK) {
+        close_file();
+        return false;
+    }
+
+    if (size == 0) {
+        close_file();
+        return false;
+    }
+
+    chunk->size = size;
+    play_audio();
+    return true;
 }
 
 int main() {
     stdio_init_all();
 
-    init_audio(&audio);
+    init_audio();
 
     init_buttons();
 
@@ -108,22 +80,17 @@ int main() {
     uint8_t buttons = 0x00;
 
     while (true) {
-        printf("Hello, world!\n");
-
-        buttons = read_buttons();
-        if (buttons > 0) {
-            play_audio(&audio);
-        } else {
-            stop_audio(&audio);
-        }
 
         if (res == FR_OK) {
-            list_root_directory();
-            test_wav();
+            send_audio();
         } else {
             printf("f_mount failed: %d\n", res);
         }
 
-        sleep_ms(1000);
+        // buttons = read_buttons();
+        // if (buttons > 0 && !is_playing()) {
+        //     play_audio("TRACK_01.WAV");
+        // }
+
     }
 }

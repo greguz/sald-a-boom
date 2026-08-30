@@ -4,37 +4,56 @@
 #include "hardware/pwm.h"
 
 #include "audio.h"
-#include "quack.h"
+
+#define SILENCE 0x80
 
 int audio_pin_slice;
 
-// This is the current position in your audio data.
-int sample_index = 0;
+AudioChunk chunks[2];
 
-bool playing = false;
+// Which chunk is currently playing
+volatile unsigned int chunk_index = 0;
 
-void pwm_irh() {
+// chunks[chunk_index].data[data_index]
+volatile unsigned int data_index = 0;
+
+// Current status
+volatile bool audio_playing = false;
+
+void pwm_irh(void) {
     pwm_clear_irq(audio_pin_slice);
 
-    if (playing) {
-        pwm_set_gpio_level(PIN_AUDIO, quack_buffer[sample_index++]);
-        if (sample_index >= QUACK_SAMPLES) {
-            sample_index = 0;
-        }
+    if (!audio_playing) {
+        pwm_set_gpio_level(PIN_AUDIO, SILENCE);
+        return;
+    }
+
+    AudioChunk *chunk = &chunks[chunk_index];
+
+    if (chunk->size > 0 && data_index >= chunk->size) {
+        chunk->size = 0;
+        chunk_index ^= 1;
+        data_index = 0;
+        chunk = &chunks[chunk_index];
+    }
+
+    if (data_index < chunk->size) {
+        pwm_set_gpio_level(PIN_AUDIO, chunk->data[data_index++]);
     } else {
-        pwm_set_gpio_level(PIN_AUDIO, 0x00);
+        pwm_set_gpio_level(PIN_AUDIO, SILENCE);
     }
 }
 
-void init_audio(CoreAudio *audio) {
-    audio->playing = false;
+void init_audio(void) {
+    chunks[0].size = 0;
+    chunks[1].size = 0;
 
     gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
 
     audio_pin_slice = pwm_gpio_to_slice_num(PIN_AUDIO);
 
     pwm_clear_irq(audio_pin_slice);
-    pwm_set_irq_enabled(audio_pin_slice, true);
+    pwm_set_irq_enabled(audio_pin_slice, false);
     irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irh);
     irq_set_enabled(PWM_IRQ_WRAP, true);
 
@@ -50,23 +69,61 @@ void init_audio(CoreAudio *audio) {
     // = 16 KHz
     //
     // divider = 30.517578125
-    pwm_config_set_clkdiv(&config, 31.0f);
+    pwm_config_set_clkdiv(&config, 30.5f);
 
     // PWM value is a 8 bit value (from 0 to 255).
     pwm_config_set_wrap(&config, 255);
 
     pwm_init(audio_pin_slice, &config, true);
 
-    pwm_set_gpio_level(PIN_AUDIO, 0);
+    pwm_set_gpio_level(PIN_AUDIO, SILENCE);
 }
 
-void play_audio(CoreAudio *audio) {
-    if (!playing) {
-        sample_index = 0;
-        playing = true;
+bool is_playing(void) {
+    return audio_playing;
+}
+
+void play_audio(void) {
+    if (audio_playing) {
+        return;
     }
+
+    audio_playing = true;
+    pwm_set_irq_enabled(audio_pin_slice, true);
 }
 
-void stop_audio(CoreAudio *audio) {
-    playing = false;
+void stop_audio(void) {
+    if (!audio_playing) {
+        return;
+    }
+
+    // Mask at the NVIC so no handler can run while the state is reset.
+    irq_set_enabled(PWM_IRQ_WRAP, false);
+
+    pwm_set_irq_enabled(audio_pin_slice, false);
+
+    audio_playing = false;
+    chunks[0].size = 0;
+    chunks[1].size = 0;
+    chunk_index = 0;
+    data_index = 0;
+
+    // Drop the wrap latched while masked, otherwise the next play_audio()
+    // takes the handler immediately.
+    pwm_clear_irq(audio_pin_slice);
+
+    pwm_set_gpio_level(PIN_AUDIO, SILENCE);
+
+    irq_set_enabled(PWM_IRQ_WRAP, true);
+}
+
+AudioChunk *grab_chunk(void) {
+    unsigned int i = chunk_index;
+    if (chunks[i].size == 0) {
+        return &chunks[i];
+    }
+    if (chunks[i ^ 1].size == 0) {
+        return &chunks[i ^ 1];
+    }
+    return NULL;
 }
