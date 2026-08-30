@@ -39,6 +39,8 @@ add_executable(sald-a-boom
         sald-a-boom.c
         ff/ff.c
         spi/spi.c
+        core/audio.c
+        core/buttons.c
 )
 
 pico_set_program_name(sald-a-boom "sald-a-boom")
@@ -59,6 +61,7 @@ target_link_libraries(sald-a-boom
 # Add the standard include files to the build
 target_include_directories(sald-a-boom PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/core
         ${CMAKE_CURRENT_LIST_DIR}/ff
         ${CMAKE_CURRENT_LIST_DIR}/spi
 )

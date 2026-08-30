@@ -5,37 +5,11 @@
 
 #include "spi.h"
 #include "ff.h"
+#include "audio.h"
+#include "buttons.h"
+#include "wav.h"
 
-#include "quack.h"
-
-// Use GPIO 6 to output audio (PWM).
-#define AUDIO_PIN 6
-
-typedef struct __attribute__((packed)) {
-    // RIFF header
-    char     riff[4];              // "RIFF"
-    uint32_t file_size;
-    char     wave[4];              // "WAVE"
-
-    // fmt chunk
-    char     fmt[4];               // "fmt "
-    uint32_t fmt_size;             // 16 for PCM
-    uint16_t audio_format;         // 1 = PCM
-    uint16_t num_channels;         // 1 = mono, 2 = stereo
-    uint32_t sample_rate;          // e.g. 44100
-    uint32_t byte_rate;
-    uint16_t block_align;
-    uint16_t bits_per_sample;      // e.g. 16
-
-    // data chunk
-    char     data[4];              // "data"
-    uint32_t data_size;
-} wav_header_t;
-
-int audio_pin_slice;
-
-// This is the current position in your audio data.
-int cur_sample = 0;
+CoreAudio audio;
 
 FATFS fs;
 
@@ -116,50 +90,12 @@ void list_root_directory(void) {
     f_closedir(&dir);
 }
 
-void pwm_irh() {
-    pwm_clear_irq(audio_pin_slice);
-
-    pwm_set_gpio_level(AUDIO_PIN, quack_buffer[cur_sample++]);
-
-    if (cur_sample >= QUACK_SAMPLES) {
-        cur_sample = 0;
-    }
-}
-
 int main() {
     stdio_init_all();
 
-    // ---------------- Audio setup ----------------
+    init_audio(&audio);
 
-    gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
-
-    audio_pin_slice = pwm_gpio_to_slice_num(AUDIO_PIN);
-
-    pwm_clear_irq(audio_pin_slice);
-    pwm_set_irq_enabled(audio_pin_slice, true);
-    irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irh);
-    irq_set_enabled(PWM_IRQ_WRAP, true);
-
-    pwm_config config = pwm_get_default_config();
-
-    // It divides the Pico's PWM clock.
-    //
-    // 8-bit PCM 16 KHz:
-    //
-    // 125 MHz
-    // ÷ divider
-    // ÷ 256
-    // = 16 KHz
-    //
-    // divider = 30.517578125
-    pwm_config_set_clkdiv(&config, 31.0f);
-
-    // PWM value is a 8 bit value (from 0 to 255).
-    pwm_config_set_wrap(&config, 255);
-
-    pwm_init(audio_pin_slice, &config, true);
-
-    pwm_set_gpio_level(AUDIO_PIN, 0);
+    init_buttons();
 
     // ---------------- Micro SD setup ----------------
 
@@ -167,11 +103,19 @@ int main() {
 
     // TODO: play quack at startup
 
-
     FRESULT res = f_mount(&fs, "", 1);
+
+    uint8_t buttons = 0x00;
 
     while (true) {
         printf("Hello, world!\n");
+
+        buttons = read_buttons();
+        if (buttons > 0) {
+            play_audio(&audio);
+        } else {
+            stop_audio(&audio);
+        }
 
         if (res == FR_OK) {
             list_root_directory();
