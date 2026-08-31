@@ -63,3 +63,12 @@ Yet another Sax-A-Boom clone project.
 ## Remove battery holder
 
 https://www.tinkercad.com/things/8PptFBEXruP-sald-a-boom
+
+## Special thanks
+
+https://gregchadwick.co.uk/blog/playing-with-the-pico-pt3/
+https://github.com/GregAC/pico-stuff/tree/main/pwm_audio
+
+https://elm-chan.org/fsw/ff/
+
+https://github.com/elehobica/pico_fatfs

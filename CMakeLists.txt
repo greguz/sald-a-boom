@@ -41,6 +41,7 @@ add_executable(sald-a-boom
         spi/spi.c
         core/audio.c
         core/buttons.c
+        core/player.c
 )
 
 pico_set_program_name(sald-a-boom "sald-a-boom")
