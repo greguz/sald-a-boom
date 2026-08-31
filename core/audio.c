@@ -20,6 +20,9 @@ volatile unsigned int data_index = 0;
 // Current status
 volatile bool audio_playing = false;
 
+// Main idea from:
+// https://gregchadwick.co.uk/blog/playing-with-the-pico-pt3/
+// https://github.com/GregAC/pico-stuff/tree/main/pwm_audio
 void pwm_irh(void) {
     pwm_clear_irq(audio_pin_slice);
 
@@ -79,11 +82,11 @@ void init_audio(void) {
     pwm_set_gpio_level(PIN_AUDIO, SILENCE);
 }
 
-bool is_playing(void) {
+bool audio_enabled(void) {
     return audio_playing;
 }
 
-void play_audio(void) {
+void enable_audio(void) {
     if (audio_playing) {
         return;
     }
@@ -92,7 +95,7 @@ void play_audio(void) {
     pwm_set_irq_enabled(audio_pin_slice, true);
 }
 
-void stop_audio(void) {
+void disable_audio(void) {
     if (!audio_playing) {
         return;
     }
@@ -117,7 +120,7 @@ void stop_audio(void) {
     irq_set_enabled(PWM_IRQ_WRAP, true);
 }
 
-AudioChunk *grab_chunk(void) {
+AudioChunk *request_audio(void) {
     unsigned int i = chunk_index;
     if (chunks[i].size == 0) {
         return &chunks[i];
@@ -126,4 +129,8 @@ AudioChunk *grab_chunk(void) {
         return &chunks[i ^ 1];
     }
     return NULL;
+}
+
+bool audio_drained(void) {
+    return chunks[chunk_index].size == 0;
 }
