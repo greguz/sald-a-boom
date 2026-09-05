@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "led.h"
 #include "player.h"
+#include "pressure.h"
 
 // No buttons pressed.
 #define PRESSED_NOTHING 0x00
@@ -26,13 +27,8 @@
 // Example: TRACK_13.WAV (bank 1, third button pressed)
 char filename[13] = "TRACK_99.WAV";
 
-bool played = true;
-
-// Current buttons status.
-uint8_t buttons = PRESSED_NOTHING;
-
 // From 1 to 8 (matches number of buttons).
-uint8_t bank_number = 1;
+volatile uint8_t bank_number = 1;
 
 // Like a guitar.
 uint8_t get_track_number(uint8_t buttons) {
@@ -73,20 +69,41 @@ void set_filename(uint8_t track_number) {
     }
 }
 
+void play_track(uint8_t buttons) {
+    set_filename(get_track_number(buttons));
+    DEBUG_PRINTF("play %s file\n", filename);
+    play_wave(filename);
+}
+
+void mode_keyboard(uint8_t buttons, bool changed) {
+    if (buttons == PRESSED_NOTHING) {
+        stop_player();
+    } else if (changed || !is_playing()) {
+        play_track(buttons);
+    }
+}
+
+void mode_pressure(uint8_t buttons, bool changed) {
+    if (!has_pressure()) {
+        stop_player();
+    } else if (changed || !is_playing()) {
+        play_track(buttons);
+    }
+}
+
 int main() {
     stdio_init_all();
 
     // Hardware initialization
     init_buttons();
     init_led();
+    init_pressure();
 
     // Application bootstrap
     enable_led();
 
-    bool ok = init_player();
-
     // Bootstrap failed (LED blinks)
-    if (!ok) {
+    if (!init_player()) {
         while (true) {
             DEBUG_PRINTF("bootstrap failed\n");
 
@@ -102,29 +119,21 @@ int main() {
     // Bootstrap completed (run the application)
     disable_led();
 
-    uint8_t b = 0x00;
+    uint8_t prev = PRESSED_NOTHING;
+    uint8_t next = PRESSED_NOTHING;
+    bool changed = false;
+
     while (true) {
         poll_player();
 
-        // Reset when buttons change
-        b = read_buttons();
-        if (b != buttons) {
-            DEBUG_PRINTF("buttons changed: %x\n", b);
-            buttons = b;
-            played = true;
+        next = read_buttons();
+        changed = next != prev;
+        if (changed) {
+            DEBUG_PRINTF("buttons changed: %x\n", next);
+            prev = next;
         }
 
-        // Not played, no button pressed, and is not playing something
-        if (!played && buttons == PRESSED_NOTHING && !is_playing()) {
-            played = true;
-        }
-
-        // Played and some button pressed
-        if (played && buttons != PRESSED_NOTHING) {
-            played = false;
-            set_filename(get_track_number(buttons));
-            DEBUG_PRINTF("play %s file\n", filename);
-            play_wave(filename);
-        }
+        mode_pressure(next, changed);
+        // TODO: mode_keyboard(next, changed);
     }
 }

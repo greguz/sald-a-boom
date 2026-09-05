@@ -167,3 +167,9 @@ void play_wave(TCHAR* path) {
 
     enable_audio();
 }
+
+void stop_player() {
+    disable_audio();
+    close_file();
+    quack_offset = QUACK_SAMPLES;
+}
