@@ -4,6 +4,7 @@
 #include "pico/stdlib.h"
 
 #include "audio.h"
+#include "debug.h"
 #include "ff.h"
 #include "quack.h"
 
@@ -40,8 +41,17 @@ volatile bool file_open = false;
 volatile unsigned int quack_offset = QUACK_SAMPLES;
 
 bool init_player(void) {
+    FRESULT res;
+
     init_audio();
-    return f_mount(&fs, "", 1) == FR_OK;
+
+    res = f_mount(&fs, "", 1);
+    if (res != FR_OK) {
+        DEBUG_PRINTF("f_mount failed: %d\n", res);
+        return false;
+    }
+
+    return true;
 }
 
 void close_file(void) {
