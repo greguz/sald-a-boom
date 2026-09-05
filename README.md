@@ -15,6 +15,21 @@ Yet another Sax-A-Boom clone project.
 - 4x 220 Ohm resistors
 - Li-Po single cell, 3.7V
 
+## Software
+
+### Environment
+
+Install Raspberry Pi Pico C/C++ SDK or use the official VS Code extension.
+
+Developed using the official VS Code extension on macOS (apple silicon).
+
+### Project structure
+
+- `ff` directory: [`FatFs` R0.16](https://elm-chan.org/fsw/ff/) FAT driver.
+- `spi` directory: [Low level `FatFs` SPI driver](https://github.com/elehobica/pico_fatfs) for Raspberry Pi Pico.
+- `core` directory: Application core modules.
+- `sald-a-boom.c`: The main application executable.
+
 ## Special thanks
 
 - https://gregchadwick.co.uk/blog/playing-with-the-pico-pt3/
