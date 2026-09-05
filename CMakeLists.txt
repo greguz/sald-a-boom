@@ -54,9 +54,10 @@ pico_enable_stdio_usb(sald-a-boom 1)
 # Add the standard library to the build
 target_link_libraries(sald-a-boom
         pico_stdlib
+        hardware_adc
         hardware_clocks
-        hardware_spi
         hardware_pwm
+        hardware_spi
 )
 
 # Add the standard include files to the build

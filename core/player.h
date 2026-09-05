@@ -16,3 +16,5 @@ void play_wave(TCHAR* path);
 bool is_playing(void);
 
 void poll_player(void);
+
+void stop_player(void);
