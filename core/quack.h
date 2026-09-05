@@ -1,6 +1,6 @@
 #define QUACK_SAMPLES 2811
 
-uint8_t quack_buffer[] = {
+static const uint8_t quack_buffer[] = {
     0x7f,
     0x80,
     0x80,

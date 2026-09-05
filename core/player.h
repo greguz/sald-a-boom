@@ -13,4 +13,6 @@ bool init_player(void);
 void play_wave(TCHAR* path);
 
 // Returns true when it's still playing something.
-bool poll_player(void);
+bool is_playing(void);
+
+void poll_player(void);

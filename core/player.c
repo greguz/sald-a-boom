@@ -114,30 +114,35 @@ void poll_quack(AudioChunk *chunk) {
     chunk->size = length;
 }
 
-bool poll_player(void) {
+void poll_player(void) {
     if (!audio_enabled()) {
-        return false;
+        return;
     }
 
     AudioChunk *chunk = request_audio();
     if (chunk == NULL) {
         // Waiting for next chunk to send
-        return true;
+        return;
     }
 
     if (file_open) {
         // Streaming WAVE file
         poll_wave(chunk);
-        return true;
     } else if (quack_offset < QUACK_SAMPLES) {
         // Still quacking
         poll_quack(chunk);
-        return true;
     } else if (audio_drained()) {
         // Audio was fully playied
         disable_audio();
-        return false;
     }
+}
+
+bool is_playing(void) {
+    return audio_enabled() && (
+        file_open ||
+        quack_offset < QUACK_SAMPLES ||
+        !audio_drained()
+    );
 }
 
 void play_wave(TCHAR* path) {
@@ -146,6 +151,7 @@ void play_wave(TCHAR* path) {
     }
 
     if (!open_wave(path)) {
+        // Starts the quacking!
         quack_offset = 0;
     }
 
