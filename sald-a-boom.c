@@ -22,19 +22,15 @@
 // Button 1 and 8
 #define PRESSED_MODES 0x81
 
-// Track filename.
-// 12 ASCII chars plus null terminator.
-// Example: TRACK_13.WAV (bank 1, third button pressed)
-char filename[13] = "TRACK_99.WAV";
-
 // From 1 to 8 (matches number of buttons).
 volatile uint8_t bank_number = 1;
 
-// Like a guitar.
 uint8_t get_track_number(uint8_t buttons) {
     if (buttons == PRESSED_NOTHING) {
         return 0;
     }
+
+    // "last button pressed" selects the note, like a guitar
     if (buttons & 0x80) {
         return 8;
     }
@@ -61,16 +57,18 @@ uint8_t get_track_number(uint8_t buttons) {
     }
 }
 
-void set_filename(uint8_t track_number) {
+void play_track(uint8_t track_number) {
+    // Track filename.
+    // 12 ASCII chars plus null terminator.
+    // Example: TRACK_13.WAV (bank 1, third button pressed)
+    char filename[13] = "TRACK_99.WAV";
+
+    // Banks from 1 to 8 (one bank per button)
+    // Tracks from 0 to 9 (one track per button plus "no buttons pressed" special track)
     if (bank_number >= 1 && bank_number <= 8 && track_number >= 0 && track_number <= 8) {
         sprintf(filename, "TRACK_%u%u.WAV", bank_number, track_number);
-    } else {
-        strcpy(filename, "TRACK_99.WAV");
     }
-}
 
-void play_track(uint8_t buttons) {
-    set_filename(get_track_number(buttons));
     DEBUG_PRINTF("play %s file\n", filename);
     play_wave(filename);
 }
@@ -79,15 +77,17 @@ void mode_keyboard(uint8_t buttons, bool changed) {
     if (buttons == PRESSED_NOTHING) {
         stop_player();
     } else if (changed || !is_playing()) {
-        play_track(buttons);
+        play_track(get_track_number(buttons));
     }
 }
 
 void mode_pressure(uint8_t buttons, bool changed) {
     if (!has_pressure()) {
-        stop_player();
-    } else if (changed || !is_playing()) {
-        play_track(buttons);
+        pause_player();
+    } else if (!changed && is_paused()) {
+        resume_player();
+    } else if (!is_playing()) {
+        play_track(get_track_number(buttons));
     }
 }
 
@@ -134,6 +134,6 @@ int main() {
         }
 
         mode_pressure(next, changed);
-        // TODO: mode_keyboard(next, changed);
+        // mode_keyboard(next, changed);
     }
 }

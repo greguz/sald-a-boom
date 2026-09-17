@@ -24,7 +24,7 @@ void init_audio(void);
 void enable_audio(void);
 
 // Mutes the audio and resets its internal state.
-void disable_audio(void);
+void disable_audio(bool reset);
 
 // Returns true when audio is enabled.
 bool audio_enabled(void);
