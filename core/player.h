@@ -10,11 +10,16 @@ bool init_player(void);
 
 // Starts a WAVE file playback.
 // Plays a quack sound if the file cannot be loaded for some reason.
-void play_wave(TCHAR* path);
+bool play_wave(TCHAR* path);
 
-// Returns true when it's still playing something.
 bool is_playing(void);
+
+bool is_paused(void);
 
 void poll_player(void);
 
 void stop_player(void);
+
+void pause_player(void);
+
+void resume_player(void);

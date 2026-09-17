@@ -14,7 +14,7 @@
 #define PRESSURE_WINDOW 50
 
 // Delta value threshold inside time window
-#define PRESSURE_THRESHOLD 200
+#define PRESSURE_THRESHOLD 500
 
 void init_pressure(void) {
     adc_init();

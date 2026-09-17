@@ -95,7 +95,7 @@ void enable_audio(void) {
     pwm_set_irq_enabled(audio_pin_slice, true);
 }
 
-void disable_audio(void) {
+void disable_audio(bool reset) {
     if (!audio_playing) {
         return;
     }
@@ -106,10 +106,12 @@ void disable_audio(void) {
     pwm_set_irq_enabled(audio_pin_slice, false);
 
     audio_playing = false;
-    chunks[0].size = 0;
-    chunks[1].size = 0;
-    chunk_index = 0;
-    data_index = 0;
+    if (reset) {
+        chunks[0].size = 0;
+        chunks[1].size = 0;
+        chunk_index = 0;
+        data_index = 0;
+    }
 
     // Drop the wrap latched while masked, otherwise the next play_audio()
     // takes the handler immediately.

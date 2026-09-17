@@ -40,6 +40,9 @@ volatile bool file_open = false;
 // Toggles the quack sound if less then QUACK_SAMPLES
 volatile unsigned int quack_offset = QUACK_SAMPLES;
 
+// Player status.
+volatile bool player_paused = false;
+
 bool init_player(void) {
     FRESULT res;
 
@@ -143,33 +146,59 @@ void poll_player(void) {
         poll_quack(chunk);
     } else if (audio_drained()) {
         // Audio was fully playied
-        disable_audio();
+        disable_audio(true);
     }
 }
 
 bool is_playing(void) {
-    return audio_enabled() && (
+    return audio_enabled() && !player_paused && (
         file_open ||
         quack_offset < QUACK_SAMPLES ||
         !audio_drained()
     );
 }
 
-void play_wave(TCHAR* path) {
+bool play_wave(TCHAR* path) {
+    bool result;
+
     if (audio_enabled()) {
-        disable_audio();
+        disable_audio(true);
     }
 
-    if (!open_wave(path)) {
+    result = open_wave(path);
+
+    if (!result) {
         // Starts the quacking!
         quack_offset = 0;
     }
-
     enable_audio();
+
+    return result;
 }
 
 void stop_player() {
-    disable_audio();
+    disable_audio(true);
     close_file();
     quack_offset = QUACK_SAMPLES;
+    player_paused = false;
+}
+
+bool is_paused(void) {
+    return player_paused;
+}
+
+void pause_player(void) {
+    if (!is_playing()) {
+        return;
+    }
+    player_paused = true;
+    disable_audio(false);
+}
+
+void resume_player(void) {
+    if (!player_paused) {
+        return;
+    }
+    player_paused = false;
+    enable_audio();
 }
