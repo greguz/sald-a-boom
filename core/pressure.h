@@ -7,6 +7,8 @@
 // MAX4466 electret microphone board
 #define PIN_PRESSURE 26
 
+#define ADC_PRESSURE PIN_PRESSURE - 26
+
 // The Pico's ADC is 12-bit: 0 to 4095
 #define PRESSURE_MAX 4095
 
@@ -20,7 +22,6 @@ void init_pressure(void) {
     adc_init();
 
     adc_gpio_init(PIN_PRESSURE);
-    adc_select_input(0); // Just using the first channel
 }
 
 uint32_t millis(void) {
@@ -44,6 +45,7 @@ bool has_pressure(void) {
     }
 
     // Update Min/Max
+    adc_select_input(ADC_PRESSURE);
     uint16_t value = adc_read();
     if (value < min) {
         min = value;

@@ -6,14 +6,15 @@ Yet another Sax-A-Boom clone project.
 
 ### Bill of Materials
 
-- Bontempi Baby Saxophone (first sax toy I found online)
+- Bontempi Baby Saxophone (first random sax toy I found online)
 - Raspberry Pi Pico (first version, non-wireless)
 - PAM8302A (low voltage class-D mono amplifier)
-- MAX4466 breakout board (electret microphone)
+- MAX4466 breakout board (electret microphone amplifier)
 - Micro SD SPI board/module (without any voltage regulator)
 - 2x 1Nxxxx diodes
-- 4x 220 Ohm resistors
-- Li-Po single cell, 3.7V
+- A potentiometer
+- Single cell Li-Po (3.7V nominal)
+- Single cell (1S) USB C BMS board
 
 ## Software
 

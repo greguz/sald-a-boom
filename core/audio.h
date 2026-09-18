@@ -34,3 +34,6 @@ bool audio_drained(void);
 
 // Request an audio buffer to fill.
 AudioChunk *request_audio(void);
+
+// Sets current volume.
+void volume_audio(uint8_t value);

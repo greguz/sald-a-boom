@@ -5,6 +5,9 @@
 
 #include "ff.h"
 
+// 0 to 255
+#define MIN_VOLUME 8
+
 // Initializes FS and PWM side.
 bool init_player(void);
 
@@ -23,3 +26,5 @@ void stop_player(void);
 void pause_player(void);
 
 void resume_player(void);
+
+void set_volume(uint8_t volume);
