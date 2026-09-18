@@ -9,6 +9,7 @@
 
 #include "buttons.h"
 #include "debug.h"
+#include "knob.h"
 #include "led.h"
 #include "player.h"
 #include "pressure.h"
@@ -21,6 +22,9 @@
 
 // Button 1 and 8
 #define PRESSED_MODES 0x81
+
+// Milliseconds period between volume adjustments
+#define KNOB_WINDOW 100
 
 // From 1 to 8 (matches number of buttons).
 volatile uint8_t bank_number = 1;
@@ -73,6 +77,28 @@ void play_track(uint8_t track_number) {
     play_wave(filename);
 }
 
+void poll_volume() {
+    static absolute_time_t date;
+
+    // TODO: remove debug code
+    uint16_t a;
+    uint8_t b;
+
+    if (is_nil_time(date)) {
+        date = delayed_by_ms(get_absolute_time(), KNOB_WINDOW);
+    }
+
+    if (time_reached(date)) {
+        date = delayed_by_ms(date, KNOB_WINDOW);
+
+        a = read_knob();
+        b = a * 255 / 4095;
+        DEBUG_PRINTF("volume %i (%i)\n", a, b);
+
+        set_volume(b);
+    }
+}
+
 void mode_keyboard(uint8_t buttons, bool changed) {
     if (buttons == PRESSED_NOTHING) {
         stop_player();
@@ -96,6 +122,7 @@ int main() {
 
     // Hardware initialization
     init_buttons();
+    init_knob();
     init_led();
     init_pressure();
 
@@ -124,7 +151,11 @@ int main() {
     bool changed = false;
 
     while (true) {
+        // Handle audio playback first
         poll_player();
+
+        // Adjust current volume
+        poll_volume();
 
         next = read_buttons();
         changed = next != prev;
@@ -133,7 +164,8 @@ int main() {
             prev = next;
         }
 
-        mode_pressure(next, changed);
-        // mode_keyboard(next, changed);
+        // TODO: mode selection
+        // mode_pressure(next, changed);
+        mode_keyboard(next, changed);
     }
 }

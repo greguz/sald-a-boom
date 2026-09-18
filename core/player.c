@@ -6,6 +6,7 @@
 #include "audio.h"
 #include "debug.h"
 #include "ff.h"
+#include "player.h"
 #include "quack.h"
 
 // http://soundfile.sapp.org/doc/WaveFormat/
@@ -93,7 +94,7 @@ bool open_wave(TCHAR* path) {
         header.fmt_size != 16 ||                    // PCM
         header.audio_format != 1 ||                 // PCM
         header.num_channels != 1 ||                 // mono
-        header.sample_rate != 16000 ||              // 16 KHz
+        header.sample_rate != 22050 ||              // 22 KHz
         header.bits_per_sample != 8 ||              // 8 bit
         memcmp(header.data, "data", 4) != 0
     ) {
@@ -201,4 +202,12 @@ void resume_player(void) {
     }
     player_paused = false;
     enable_audio();
+}
+
+void set_volume(uint8_t value) {
+    if (value < MIN_VOLUME) {
+        volume_audio(MIN_VOLUME);
+    } else {
+        volume_audio(value);
+    }
 }
