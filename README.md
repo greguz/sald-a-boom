@@ -12,7 +12,11 @@ Yet another Sax-A-Boom clone project.
 - MAX4466 breakout board (electret microphone amplifier)
 - Micro SD SPI board/module (without any voltage regulator)
 - 2x 1Nxxxx diodes
-- A potentiometer
+- 1x potentiometer
+- 1x 100 nF ceramic capacitor
+- 1x 68 Ohm resistor
+- 1x 1 KOhm resistor
+- 1x 2.2 KOhm resistor
 - Single cell Li-Po (3.7V nominal)
 - Single cell (1S) USB C BMS board
 
