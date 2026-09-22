@@ -31,18 +31,18 @@ typedef struct __attribute__((packed)) {
     uint32_t data_size;
 } wav_header_t;
 
-FATFS fs;
+static FATFS fs;
 
-FIL file;
+static FIL file;
 
 // Toggles WAVE file streaming (has precedence over quacking)
-volatile bool file_open = false;
+static volatile bool file_open = false;
 
 // Toggles the quack sound if less then QUACK_SAMPLES
-volatile unsigned int quack_offset = QUACK_SAMPLES;
+static volatile unsigned int quack_offset = QUACK_SAMPLES;
 
 // Player status.
-volatile bool player_paused = false;
+static volatile bool player_paused = false;
 
 bool init_player(void) {
     FRESULT res;
@@ -58,14 +58,14 @@ bool init_player(void) {
     return true;
 }
 
-void close_file(void) {
+static void close_file(void) {
     if (file_open) {
         f_close(&file);
         file_open = false;
     }
 }
 
-bool open_file(TCHAR* path) {
+static bool open_file(const TCHAR* path) {
     if (file_open) {
         close_file();
     }
@@ -73,7 +73,7 @@ bool open_file(TCHAR* path) {
     return file_open;
 }
 
-bool open_wave(TCHAR* path) {
+static bool open_wave(const TCHAR* path) {
     if (!open_file(path)) {
         return false;
     }
@@ -105,7 +105,7 @@ bool open_wave(TCHAR* path) {
     return true;
 }
 
-void poll_wave(AudioChunk *chunk) {
+static void poll_wave(audio_chunk_t *chunk) {
     UINT bytes_read = 0;
     FRESULT res = f_read(&file, chunk->data, AUDIO_BUFFER_SIZE, &bytes_read);
 
@@ -116,7 +116,7 @@ void poll_wave(AudioChunk *chunk) {
     }
 }
 
-void poll_quack(AudioChunk *chunk) {
+static void poll_quack(audio_chunk_t *chunk) {
     unsigned int length = QUACK_SAMPLES - quack_offset;
     if (length > AUDIO_BUFFER_SIZE) {
         length = AUDIO_BUFFER_SIZE;
@@ -133,7 +133,7 @@ void poll_player(void) {
         return;
     }
 
-    AudioChunk *chunk = request_audio();
+    audio_chunk_t *chunk = request_audio();
     if (chunk == NULL) {
         // Waiting for next chunk to send
         return;
@@ -159,7 +159,7 @@ bool is_playing(void) {
     );
 }
 
-bool play_wave(TCHAR* path) {
+bool play_wave(const TCHAR* path) {
     bool result;
 
     if (audio_enabled()) {
@@ -177,7 +177,7 @@ bool play_wave(TCHAR* path) {
     return result;
 }
 
-void stop_player() {
+void stop_player(void) {
     disable_audio(true);
     close_file();
     quack_offset = QUACK_SAMPLES;

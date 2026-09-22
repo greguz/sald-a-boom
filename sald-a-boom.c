@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,12 +8,11 @@
 #include "spi.h"
 #include "ff.h"
 
+#include "adc.h"
 #include "buttons.h"
 #include "debug.h"
-#include "knob.h"
 #include "led.h"
 #include "player.h"
-#include "pressure.h"
 
 // No buttons pressed.
 #define PRESSED_NOTHING 0x00
@@ -41,56 +41,56 @@
 //
 #define BANK_SELECT     42
 
-// milliseconds
+// (milliseconds)
 #define CONFIG_TIMEOUT  5000
 
 // Currently enabled mode
-volatile uint8_t current_mode = 0x00;
+static uint8_t current_mode = 0x00;
 
 // From 1 to 8 (matches number of buttons).
-volatile uint8_t current_bank = 1;
+static uint8_t current_bank = 1;
 
 // Wait for current audio to finish its playback.
 // Also ignores any button change.
-volatile bool wait_playback = false;
+static bool wait_playback = false;
 
-uint8_t get_track_number(uint8_t buttons) {
-    if (buttons == PRESSED_NOTHING) {
-        return 0;
-    }
+// Buttons state.
+static buttons_t buttons;
 
+static uint8_t get_track_number(void) {
     // "last button pressed" selects the note, like a guitar
-    if (buttons & 0x80) {
+    if (buttons.state & 0x80) {
         return 8;
     }
-    if (buttons & 0x40) {
+    if (buttons.state & 0x40) {
         return 7;
     }
-    if (buttons & 0x20) {
+    if (buttons.state & 0x20) {
         return 6;
     }
-    if (buttons & 0x10) {
+    if (buttons.state & 0x10) {
         return 5;
     }
-    if (buttons & 0x08) {
+    if (buttons.state & 0x08) {
         return 4;
     }
-    if (buttons & 0x04) {
+    if (buttons.state & 0x04) {
         return 3;
     }
-    if (buttons & 0x02) {
+    if (buttons.state & 0x02) {
         return 2;
     }
-    if (buttons & 0x01) {
+    if (buttons.state & 0x01) {
         return 1;
     }
+    return 0;
 }
 
-void play_track(uint8_t track_number) {
+static void play_track(uint8_t track_number) {
     // Track filename.
     // 12 ASCII chars plus null terminator.
     // Example: TRACK_13.WAV (bank 1, third button pressed)
-    char filename[13] = "TRACK_99.WAV";
+    TCHAR filename[13] = "TRACK_99.WAV";
 
     // Banks from 1 to 8 (one bank per button)
     // Tracks from 0 to 9 (one track per button plus "no buttons pressed" special track)
@@ -102,12 +102,12 @@ void play_track(uint8_t track_number) {
     play_wave(filename);
 }
 
-void play_duck(void) {
+static void play_duck(void) {
     wait_playback = true;
     play_track(DUCK_TRACK);
 }
 
-void poll_volume() {
+static void poll_volume(void) {
     static absolute_time_t date;
 
     // TODO: remove debug code
@@ -132,11 +132,11 @@ void poll_volume() {
 // The default operation mode.
 // You press something, it will play something.
 // You release the button, it will stop playing.
-void mode_keyboard(uint8_t buttons, bool changed) {
-    if (buttons == PRESSED_NOTHING) {
+static void mode_keyboard(void) {
+    if (buttons.state == PRESSED_NOTHING) {
         stop_player();
-    } else if (changed || !is_playing()) {
-        play_track(get_track_number(buttons));
+    } else if (buttons_changed(&buttons) || !is_playing()) {
+        play_track(get_track_number());
     }
 }
 
@@ -147,19 +147,23 @@ void mode_keyboard(uint8_t buttons, bool changed) {
 // When you stop, it will pause the playback.
 // If you don't change the buttons, blowing again will resume the track.
 // Changing buttons will always reset the playback.
-void mode_sax(uint8_t buttons, bool changed) {
+static void mode_sax(void) {
     if (!has_pressure()) {
         pause_player();
-    } else if (!changed && is_paused()) {
+    } else if (!buttons_changed(&buttons) && is_paused()) {
         resume_player();
     } else if (!is_playing()) {
-        play_track(get_track_number(buttons));
+        play_track(get_track_number());
     }
 }
 
 // Select which bank is enabled (tracklist selection).
-void select_bank(uint8_t buttons) {
-    switch (buttons) {
+static void select_bank(void) {
+    if (!button_pressed(&buttons)) {
+        return;
+    }
+
+    switch (buttons.state) {
         case 0x01:
             current_bank = 1;
             break;
@@ -187,13 +191,18 @@ void select_bank(uint8_t buttons) {
     }
 
     if (current_bank != BANK_SELECT) {
+        DEBUG_PRINTF("bank changed: %i\n", current_bank);
         play_duck();
     }
 }
 
 // Select which playback mode to use.
-void select_mode(uint8_t buttons) {
-    switch (buttons) {
+static void select_mode(void) {
+    if (!button_pressed(&buttons)) {
+        return;
+    }
+
+    switch (buttons.state) {
         case 0x01:
             current_mode = MODE_KEYBOARD;
             break;
@@ -203,55 +212,49 @@ void select_mode(uint8_t buttons) {
     }
 
     if (current_mode != MODE_SELECT) {
+        DEBUG_PRINTF("mode changed: %i\n", current_mode);
         play_duck();
     }
 }
 
-void sald_a_boom(uint8_t new_buttons) {
+static void sald_a_boom(void) {
     static absolute_time_t date;
-    static uint8_t old_buttons = 0x00;
     if (is_nil_time(date)) {
         date = delayed_by_ms(get_absolute_time(), CONFIG_TIMEOUT);
     }
 
-    bool changed = new_buttons != old_buttons;
-    if (changed) {
-        DEBUG_PRINTF("buttons changed: %x\n", new_buttons);
+    if (buttons_changed(&buttons)) {
+        DEBUG_PRINTF("buttons changed: %x\n", buttons.state);
         date = delayed_by_ms(get_absolute_time(), CONFIG_TIMEOUT);
     }
 
-    if (new_buttons == PRESSED_BANKS && time_reached(date)) {
+    if (buttons.state == PRESSED_BANKS && time_reached(date)) {
         DEBUG_PRINTF("entered bank selection mode\n");
         current_bank = BANK_SELECT;
         play_duck();
-    } else if (new_buttons == PRESSED_MODES && time_reached(date)) {
+    } else if (buttons.state == PRESSED_MODES && time_reached(date)) {
         DEBUG_PRINTF("entered mode selection mode\n");
         current_mode = MODE_SELECT;
         play_duck();
     } else {
         switch (current_mode) {
             case MODE_SAX:
-                mode_sax(new_buttons, changed);
+                mode_sax();
                 break;
             default:
-                mode_keyboard(new_buttons, changed);
+                mode_keyboard();
                 break;
         }
     }
-
-    old_buttons = new_buttons;
 }
 
-int main() {
-    uint8_t buttons = 0x00;
-
+int main(void) {
     stdio_init_all();
 
     // Hardware initialization
-    init_buttons();
-    init_knob();
+    init_adc();
+    init_buttons(&buttons);
     init_led();
-    init_pressure();
 
     // Application bootstrap
     enable_led();
@@ -276,6 +279,7 @@ int main() {
     while (true) {
         poll_player();
         poll_volume();
+        poll_buttons(&buttons);
 
         if (wait_playback) {
             if (is_playing()) {
@@ -285,13 +289,12 @@ int main() {
             }
         }
 
-        buttons = read_buttons();
         if (current_bank == BANK_SELECT) {
-            select_bank(buttons);
+            select_bank();
         } else if (current_mode == MODE_SELECT) {
-            select_mode(buttons);
+            select_mode();
         } else {
-            sald_a_boom(buttons);
+            sald_a_boom();
         }
     }
 }

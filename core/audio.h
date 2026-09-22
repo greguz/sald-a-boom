@@ -4,17 +4,17 @@
 #include <stdint.h>
 
 // Use GPIO 6 to output audio (PWM).
-#define PIN_AUDIO 6
+#define GPIO_AUDIO          6
 
 // Bytes per chunk. Two chunks are kept in flight (double buffering).
-#define AUDIO_BUFFER_SIZE 4096
+#define AUDIO_BUFFER_SIZE   4096
 
 typedef struct {
     // Binary audio to play.
     uint8_t data[AUDIO_BUFFER_SIZE];
     // How many bytes are valid inside `data` buffer.
     volatile unsigned int size;
-} AudioChunk;
+} audio_chunk_t;
 
 // Initialize lower-level audio hardware (PWM).
 void init_audio(void);
@@ -33,7 +33,7 @@ bool audio_enabled(void);
 bool audio_drained(void);
 
 // Request an audio buffer to fill.
-AudioChunk *request_audio(void);
+audio_chunk_t *request_audio(void);
 
 // Sets current volume.
 void volume_audio(uint8_t value);

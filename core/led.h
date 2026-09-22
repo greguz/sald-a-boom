@@ -1,19 +1,13 @@
-#define PIN_LED 25
+#pragma once
 
-void init_led(void) {
-    gpio_init(PIN_LED);
-    gpio_set_dir(PIN_LED, GPIO_OUT);
-    gpio_put(PIN_LED, 0);
-}
+#include <stdbool.h>
 
-void enable_led(void) {
-    gpio_put(PIN_LED, 1);
-}
+#define GPIO_LED 25
 
-void disable_led(void) {
-    gpio_put(PIN_LED, 0);
-}
+void init_led(void);
 
-bool led_enabled(void) {
-    return gpio_get_out_level(PIN_LED);
-}
+void enable_led(void);
+
+void disable_led(void);
+
+bool led_enabled(void);
