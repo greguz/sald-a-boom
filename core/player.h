@@ -13,7 +13,7 @@ bool init_player(void);
 
 // Starts a WAVE file playback.
 // Plays a quack sound if the file cannot be loaded for some reason.
-bool play_wave(TCHAR* path);
+bool play_wave(const TCHAR* path);
 
 bool is_playing(void);
 

@@ -1,31 +1,19 @@
-#include <stdio.h>
-#include "pico/stdlib.h"
 #include "hardware/adc.h"
+#include "pico/time.h"
 
+#include "adc.h"
 #include "debug.h"
 
-// MAX4466 electret microphone board
-#define PIN_PRESSURE 26
-
-#define ADC_PRESSURE PIN_PRESSURE - 26
+#define ADC_INPUT(gpio) (gpio - 26)
 
 // The Pico's ADC is 12-bit: 0 to 4095
-#define PRESSURE_MAX 4095
+#define ADC_MAX 4095
 
-// Time window in milliseconds
-#define PRESSURE_WINDOW 50
-
-// Delta value threshold inside time window
-#define PRESSURE_THRESHOLD 500
-
-void init_pressure(void) {
+void init_adc(void) {
     adc_init();
 
-    adc_gpio_init(PIN_PRESSURE);
-}
-
-uint32_t millis(void) {
-    return to_ms_since_boot(get_absolute_time());
+    adc_gpio_init(GPIO_PRESSURE);
+    adc_gpio_init(GPIO_KNOB);
 }
 
 bool has_pressure(void) {
@@ -36,16 +24,16 @@ bool has_pressure(void) {
     static absolute_time_t date;
 
     // Min/Max value since last update
-    static uint16_t min = PRESSURE_MAX;
+    static uint16_t min = ADC_MAX;
     static uint16_t max = 0;
 
     // Initialize date time at first run
     if (is_nil_time(date)) {
-        date = delayed_by_ms(get_absolute_time(), PRESSURE_WINDOW);
+        date = delayed_by_ms(get_absolute_time(), PRESSURE_INTERVAL);
     }
 
     // Update Min/Max
-    adc_select_input(ADC_PRESSURE);
+    adc_select_input(ADC_INPUT(GPIO_PRESSURE));
     uint16_t value = adc_read();
     if (value < min) {
         min = value;
@@ -57,7 +45,7 @@ bool has_pressure(void) {
     // Handle time tick
     if (time_reached(date)) {
         // Shift date
-        date = delayed_by_ms(date, PRESSURE_WINDOW);
+        date = delayed_by_ms(date, PRESSURE_INTERVAL);
 
         // Update pressure status
         res = (max - min) >= PRESSURE_THRESHOLD;
@@ -68,9 +56,14 @@ bool has_pressure(void) {
         }
 
         // Reset delta
-        min = PRESSURE_MAX;
+        min = ADC_MAX;
         max = 0;
     }
 
     return res;
+}
+
+uint16_t read_knob(void) {
+    adc_select_input(ADC_INPUT(GPIO_KNOB));
+    return adc_read();
 }

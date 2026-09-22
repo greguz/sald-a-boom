@@ -39,9 +39,12 @@ add_executable(sald-a-boom
         sald-a-boom.c
         ff/ff.c
         spi/spi.c
+        core/adc.c
         core/audio.c
         core/buttons.c
+        core/led.c
         core/player.c
+        core/quack.c
 )
 
 pico_set_program_name(sald-a-boom "sald-a-boom")
@@ -69,3 +72,5 @@ target_include_directories(sald-a-boom PRIVATE
 )
 
 pico_add_extra_outputs(sald-a-boom)
+
+target_compile_options(sald-a-boom PRIVATE -Wall -Wextra)

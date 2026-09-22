@@ -15,31 +15,31 @@
 // - The hardware RC filter must filter out this frequency
 // - It will determine which bits per sample is supported
 // - It will determine which WAVE frequency is supported
-#define PWM_CLKDIV 5.5f
-#define PWM_WRAP   255u
+#define PWM_CLKDIV          5.5f
+#define PWM_WRAP            255u
 
 // Halfway of PWM_WRAP
-#define PWM_SILENCE 0x80
+#define PWM_SILENCE         0x80
 
-volatile int pin_slice;
+static volatile int pin_slice;
 
-AudioChunk chunks[2];
+static audio_chunk_t chunks[2];
 
 // Which chunk is currently playing
-volatile unsigned int chunk_index = 0;
+static volatile unsigned int chunk_index = 0;
 
 // chunks[chunk_index].data[data_index]
-volatile unsigned int data_index = 0;
+static volatile unsigned int data_index = 0;
 
 // Current status
-volatile bool playing = false;
+static volatile bool playing = false;
 
 // volume: 0 = silent, 255 = full volume
-volatile uint8_t volume = 128;
+static volatile uint8_t volume = 128;
 
-volatile uint32_t ticks_counter = 0;
+static volatile uint32_t ticks_counter = 0;
 
-uint8_t adjust_volume(uint8_t sample) {
+static uint8_t adjust_volume(uint8_t sample) {
     int16_t centered = (int16_t)sample - 128;
     centered = (centered * volume) / 255;
     return (uint8_t)(centered + 128);
@@ -48,7 +48,7 @@ uint8_t adjust_volume(uint8_t sample) {
 // Main idea from:
 // https://gregchadwick.co.uk/blog/playing-with-the-pico-pt3/
 // https://github.com/GregAC/pico-stuff/tree/main/pwm_audio
-void pwm_irh(void) {
+static void pwm_irh(void) {
     pwm_clear_irq(pin_slice);
 
     // Change the PWM output every 4 ticks (PWM frequency is 4x of WAVE frequency).
@@ -58,11 +58,11 @@ void pwm_irh(void) {
     ticks_counter = 0;
 
     if (!playing) {
-        pwm_set_gpio_level(PIN_AUDIO, PWM_SILENCE);
+        pwm_set_gpio_level(GPIO_AUDIO, PWM_SILENCE);
         return;
     }
 
-    AudioChunk *chunk = &chunks[chunk_index];
+    audio_chunk_t *chunk = &chunks[chunk_index];
 
     if (chunk->size > 0 && data_index >= chunk->size) {
         chunk->size = 0;
@@ -73,11 +73,11 @@ void pwm_irh(void) {
 
     if (data_index < chunk->size) {
         pwm_set_gpio_level(
-            PIN_AUDIO,
+            GPIO_AUDIO,
             adjust_volume(chunk->data[data_index++])
         );
     } else {
-        pwm_set_gpio_level(PIN_AUDIO, PWM_SILENCE);
+        pwm_set_gpio_level(GPIO_AUDIO, PWM_SILENCE);
     }
 }
 
@@ -86,9 +86,9 @@ void init_audio(void) {
     chunks[1].size = 0;
     ticks_counter = 0;
 
-    gpio_set_function(PIN_AUDIO, GPIO_FUNC_PWM);
+    gpio_set_function(GPIO_AUDIO, GPIO_FUNC_PWM);
 
-    pin_slice = pwm_gpio_to_slice_num(PIN_AUDIO);
+    pin_slice = pwm_gpio_to_slice_num(GPIO_AUDIO);
 
     pwm_clear_irq(pin_slice);
     pwm_set_irq_enabled(pin_slice, false);
@@ -103,7 +103,7 @@ void init_audio(void) {
 
     pwm_init(pin_slice, &config, true);
 
-    pwm_set_gpio_level(PIN_AUDIO, PWM_SILENCE);
+    pwm_set_gpio_level(GPIO_AUDIO, PWM_SILENCE);
 }
 
 bool audio_enabled(void) {
@@ -142,12 +142,12 @@ void disable_audio(bool reset) {
     // takes the handler immediately.
     pwm_clear_irq(pin_slice);
 
-    pwm_set_gpio_level(PIN_AUDIO, PWM_SILENCE);
+    pwm_set_gpio_level(GPIO_AUDIO, PWM_SILENCE);
 
     irq_set_enabled(PWM_IRQ_WRAP, true);
 }
 
-AudioChunk *request_audio(void) {
+audio_chunk_t *request_audio(void) {
     unsigned int i = chunk_index;
     if (chunks[i].size == 0) {
         return &chunks[i];
