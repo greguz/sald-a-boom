@@ -23,6 +23,9 @@
 // Playback mode: see "mode_sax()" function comment.
 #define MODE_SAX        1
 
+// Playback mode: see "mode_toggle()" function comment.
+#define MODE_TOGGLE     2
+
 // Special mode: choose active mode.
 #define MODE_SELECT     -24
 
@@ -47,7 +50,7 @@ static const int mode_sequence[HISTORY_SIZE] = {4, 4, 5, 5, 4, 4, 5, 5};
 // Also ignores any button change.
 static bool wait_playback = false;
 
-// Currently enabled mode (see)
+// Currently enabled mode.
 static int current_mode = MODE_KEYBOARD;
 
 // First bank (first button).
@@ -133,6 +136,31 @@ static void mode_sax(void) {
         resume_player();
     } else if (!is_playing()) {
         play_track(get_track_number());
+    }
+}
+
+// Toggle mode (pause/resume).
+// First click: start track.
+// Second click on same button: pause track.
+// Third click on same button: resume track.
+// Change button: start new track.
+static void mode_toggle(void) {
+    static int current_track = -1;
+
+    for (int n = 1; n <= BUTTONS_COUNT; n++) {
+        if (button_was_pressed(&buttons[n - 1])) {
+            if (current_track == n && is_playing()) {
+                DEBUG_PRINTF("pause track\n");
+                pause_player();
+            } else if (current_track == n && is_paused()) {
+                DEBUG_PRINTF("resume track\n");
+                resume_player();
+            } else {
+                play_track(n);
+            }
+
+            current_track = n;
+        }
     }
 }
 
@@ -223,6 +251,9 @@ static void sald_a_boom(void) {
         switch (current_mode) {
             case MODE_SAX:
                 mode_sax();
+                break;
+            case MODE_TOGGLE:
+                mode_toggle();
                 break;
             default:
                 mode_keyboard();
