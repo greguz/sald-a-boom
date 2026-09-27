@@ -46,6 +46,7 @@ add_executable(sald-a-boom
         core/led.c
         core/player.c
         core/quack.c
+        core/settings.c
 )
 
 pico_set_program_name(sald-a-boom "sald-a-boom")

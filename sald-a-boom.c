@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "led.h"
 #include "player.h"
+#include "settings.h"
 
 // Milliseconds period between volume adjustments
 #define KNOB_INTERVAL   100
@@ -50,20 +51,16 @@ static const int mode_sequence[HISTORY_SIZE] = {4, 4, 5, 5, 4, 4, 5, 5};
 // Also ignores any button change.
 static bool wait_playback = false;
 
-// Currently enabled mode.
-static int current_mode = MODE_KEYBOARD;
-
-// First bank (first button).
-static int current_bank = 1;
+static settings_t settings;
 
 static void play_track(int track_number) {
     TCHAR filename[22] = "/ERROR.WAV";
 
-    if (current_bank >= 0 && current_bank < 100 && track_number >= 0 && track_number < 100) {
+    if (settings.bank >= 0 && settings.bank < 100 && track_number >= 0 && track_number < 100) {
         snprintf(
             filename,
             sizeof(filename),
-            "/BANK_%02d/TRACK_%02d.WAV", current_bank, track_number
+            "/BANK_%02d/TRACK_%02d.WAV", settings.bank, track_number
         );
     }
 
@@ -167,8 +164,9 @@ static void mode_toggle(void) {
 // Select which bank is enabled (tracklist selection).
 static void select_bank() {
     if (history[0] >= 1 && history[0] <= BUTTONS_COUNT) {
-        current_bank = history[0];
-        DEBUG_PRINTF("bank changed: %i\n", current_bank);
+        settings.bank = history[0];
+        DEBUG_PRINTF("bank changed: %i\n", settings.bank);
+        save_settings(&settings);
         play_notification();
     }
 }
@@ -177,15 +175,16 @@ static void select_bank() {
 static void select_mode() {
     switch (history[0]) {
         case 1:
-            current_mode = MODE_KEYBOARD;
+            settings.mode = MODE_KEYBOARD;
             break;
         case 2:
-            current_mode = MODE_SAX;
+            settings.mode = MODE_SAX;
             break;
     }
 
-    if (current_mode != MODE_SELECT) {
-        DEBUG_PRINTF("mode changed: %i\n", current_mode);
+    if (settings.mode != MODE_SELECT) {
+        DEBUG_PRINTF("mode changed: %i\n", settings.mode);
+        save_settings(&settings);
         play_notification();
     }
 }
@@ -240,15 +239,15 @@ static void sald_a_boom(void) {
     if (sequence_matches(bank_sequence)) {
         DEBUG_PRINTF("entered bank selection mode\n");
         shift_history(-1); // break sequence to prevent re-entering this mode
-        current_bank = BANK_SELECT;
+        settings.bank = BANK_SELECT;
         play_notification();
     } else if (sequence_matches(mode_sequence)) {
         DEBUG_PRINTF("entered mode selection mode\n");
         shift_history(-1); // break sequence to prevent re-entering this mode
-        current_mode = MODE_SELECT;
+        settings.mode = MODE_SELECT;
         play_notification();
     } else {
-        switch (current_mode) {
+        switch (settings.mode) {
             case MODE_SAX:
                 mode_sax();
                 break;
@@ -291,6 +290,16 @@ int main(void) {
     // Bootstrap completed (run the application)
     disable_led();
 
+    if (!load_settings(&settings)) {
+        DEBUG_PRINTF("load default settings\n");
+        settings = (settings_t) {
+            .magic = SETTINGS_MAGIC,
+            .version = 1,
+            .mode = MODE_KEYBOARD,
+            .bank = 1
+        };
+    }
+
     while (true) {
         poll_player();
         poll_volume();
@@ -305,9 +314,9 @@ int main(void) {
             }
         }
 
-        if (current_bank == BANK_SELECT) {
+        if (settings.bank == BANK_SELECT) {
             select_bank();
-        } else if (current_mode == MODE_SELECT) {
+        } else if (settings.mode == MODE_SELECT) {
             select_mode();
         } else {
             sald_a_boom();
