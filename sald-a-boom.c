@@ -180,6 +180,9 @@ static void select_mode() {
         case 2:
             settings.mode = MODE_SAX;
             break;
+        case 3:
+            settings.mode = MODE_TOGGLE;
+            break;
     }
 
     if (settings.mode != MODE_SELECT) {
