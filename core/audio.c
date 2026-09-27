@@ -40,8 +40,14 @@ static volatile uint8_t volume = 128;
 static volatile uint32_t ticks_counter = 0;
 
 static uint8_t adjust_volume(uint8_t sample) {
-    int16_t centered = (int16_t)sample - 128;
-    centered = (centered * volume) / 255;
+   int16_t centered = (int16_t)sample - 128;
+
+    // volume 0 is 10% amplitude
+    // volume 255 is 100% amplitude
+    uint16_t gain = 26 + ((uint16_t)volume * 229) / 255;
+
+    centered = (centered * gain) / 255;
+
     return (uint8_t)(centered + 128);
 }
 

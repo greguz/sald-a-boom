@@ -25,7 +25,7 @@ Yet another Sax-A-Boom clone project.
 - MAX4466 breakout board (electret microphone amplifier)
 - Micro SD SPI board/module (without any voltage regulator)
 - 2x 1Nxxxx diodes
-- 1x potentiometer
+- 1x 100 KOhm logarithmic potentiometer
 - 1x 100 nF ceramic capacitor
 - 1x 68 Ohm resistor
 - 1x 1 KOhm resistor
@@ -44,10 +44,10 @@ Yet another Sax-A-Boom clone project.
       CLK │4                  37│
      MOSI │5                  36│ 3V3
      MISO │6                  35│
-      GND │7                  34│
-Audio OUT │8                  33│ Pot IN
-          │9      ┌─────┐     32│ MAX4466 IN
-          │10     │     │     31│
+       CS │7                  34│
+      GND │8                  33│ GND
+Audio OUT │9      ┌─────┐     32│ Pot IN
+          │10     │     │     31│ MAX4466 IN
           │11     │     │     30│
           │12     └─────┘     29│
       GND │13                 28│ GND

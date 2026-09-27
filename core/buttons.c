@@ -2,6 +2,7 @@
 
 #include "buttons.h"
 
+// TODO: make the matrix dynamic
 // Buttons grid digital inputs (pullup)
 #define GPIO_ROW_0          10
 #define GPIO_ROW_1          11
