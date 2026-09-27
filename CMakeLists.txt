@@ -41,6 +41,7 @@ add_executable(sald-a-boom
         spi/spi.c
         core/adc.c
         core/audio.c
+        core/button.c
         core/buttons.c
         core/led.c
         core/player.c
