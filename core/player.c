@@ -113,6 +113,7 @@ static void poll_wave(audio_chunk_t *chunk) {
         chunk->size = bytes_read;
     } else {
         close_file();
+        chunk->size = 0;
     }
 }
 
@@ -170,6 +171,7 @@ bool play_wave(const TCHAR* path) {
 
     if (!result) {
         // Starts the quacking!
+        file_open = false;
         quack_offset = 0;
     }
     enable_audio();
